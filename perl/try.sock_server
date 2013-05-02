@@ -1,0 +1,37 @@
+
+use strict;
+use Socket;
+use IO::Socket::INET;
+use AnyEvent::Socket;
+use AnyEvent::Handle;
+
+my $cv = AnyEvent->condvar;
+
+
+my $loc = "/var/run/my.sock";
+-e $loc && unlink $loc;
+warn "creating loc $loc\n";
+
+my $hdl;
+my $g; $g = AnyEvent::Socket::tcp_server 'unix/', $loc, sub {
+    my ($fh) = @_;
+   $hdl =
+      AnyEvent::Handle->new (
+         fh => $fh,
+         on_eof => sub { warn "on_eof fired\n" },
+         on_error => sub { warn "on_error: $!\n"  },
+      );
+
+   # $hdl->push_write ("Hello!\015\012");
+
+   $hdl->on_read (sub {
+      my ($hdl) = @_;
+
+      $hdl->push_read (line => sub {
+         my ($hdl, $line) = @_;
+        print "SERVER> $line\n";
+        });
+    });
+};
+
+$cv->wait;

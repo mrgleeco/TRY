@@ -1,0 +1,19 @@
+
+
+
+sub ip2n { return pack 'C4', split(/\./, shift ) };
+sub cidr { return (2**(32-shift) ) };
+sub n2ip { return join('.', unpack 'C4', shift ) };
+
+my @k = qw(
+    128.32.3.0/32
+    128.32.3.0/30
+    128.32.3.0/24
+);
+foreach (@k){ 
+    my ($ip,$cidr) = split(m@/@, $_ );
+    my $m = cidr($cidr);
+    my $n = ip2n($ip );
+    my $last = n2ip( $n & $m );
+    print "ip=$ip  cidr=$cidr mask: $m ip length=", (length $n ), "range: $ip-$last\n"; 
+}

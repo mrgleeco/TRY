@@ -1,0 +1,42 @@
+
+use JSON::XS;
+# use Socket; #   qw( getaddrinfo getnameinfo );
+use Socket qw(AF_INET AF_INET6 AF_UNIX SOCK_STREAM SOCK_DGRAM SOL_SOCKET SO_REUSEADDR);
+
+sub checkit($){
+    my $packed_ip = scalar gethostbyname(shift);
+    return undef if !  $packed_ip;
+    warn "STILL WORKING";
+        my @addr = Socket::inet_ntoa($packed_ip);
+        print JSON::XS->new->pretty->encode(\@addr)
+}
+
+sub checkit_six($){
+    #my ($err,@addr) = Socket::getaddrinfo(shift, "", {socktype => SOCK_RAW});
+    # my ($err,@addr) = Socket::getaddrinfo(shift, "", {socktype => SOCK_DGRAM});
+    my ($err,@addr) = Socket::getaddrinfo(shift, "http", {socktype => SOCK_STREAM, flags => AI_NUMERICHOST, family => AF_INET6 });
+
+    for my $ai (@addr) {
+      # return reverse lookup:
+      $ai->{addr} or die 'NO ADDR!';
+      my $ipaddr = Socket::inet_ntop(AF_INET6, $ai->{addr} );
+      # my ($err, $ipaddr) = Socket::getnameinfo($ai->{addr}, NI_NUMERICHOST, NIx_NOSERV);
+      # my ($err, $ipaddr) = Socket::getnameinfo($ai->{addr}, NI_NUMERICHOST);
+      # my ($port, $ipaddr ) = Socket::unpack_sockaddr_in( $ai->{addr}); 
+      # @x = Socket::sockaddr_in6($ai->{addr});
+
+        print " addr: $x[1] $ipaddr\n";
+  }
+  return JSON::XS->new->allow_nonref->allow_unknown->pretty->encode(\@addr);
+  return;
+
+   my @ret = grep {$_->{addr}} @addr;
+}
+
+
+
+print "$_ => ",checkit_six($_), "\n"
+    for @ARGV;
+
+
+__END__

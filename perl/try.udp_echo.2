@@ -1,0 +1,27 @@
+#!/usr/bin/perl
+
+use IO::Socket;
+use strict;
+use warnings;
+
+my $loc = '/var/run/metrics.sock';
+
+unlink $loc;
+our $server = IO::Socket::UNIX->new(
+        LocalAddr => $loc,
+        Type => SOCK_DGRAM,
+        Listen => 5
+   )
+    or die $!;
+
+warn "starting loop; ";
+
+while (my $client = $server->accept()) {
+    while (defined (my $buf = <$client>)) {
+        print "$buf\n"; 
+    }
+}
+
+close ($server);
+
+exit(0);

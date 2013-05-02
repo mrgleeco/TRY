@@ -1,0 +1,138 @@
+
+use strict;
+use warnings;
+use utf8;
+use Time::ParseDate ();
+use POSIX ();
+
+sub naive {
+    my @opt = map { '-'.$_ } qw(
+        noout
+        issuer      subject     dates
+        alias       modulus
+        ocsp_uri
+        fingerprint 
+        pubkey
+        hash
+    );
+    my $opts_string = join(' ', @opt);
+
+    print qq{ openssl x509 cert -in cert $opts_string }, "\n";
+    print qx{ openssl x509 -in cert $opts_string };
+
+}
+
+use JSON::XS;
+
+my $pretty = {};
+my $Handler = {};
+
+sub normk{ 
+    my ($k) = @_;
+    return $pretty->{$k}
+        if $pretty->{$k}; 
+
+    $k =~ s![\n\-:\s+]!_!g;
+    $k =~ s!^_*(.*?)_*$!$1!g;
+    $k =~ s!_+!_!g;
+    $k = lc($k);
+    $k;
+}
+
+sub mod {
+    my ($k,$v) = @_;
+    return $Handler->{$k} 
+        ?  $Handler->{$k}->(@_)
+        : $v; 
+}
+
+{
+ my $data = {};
+ sub ack {
+    my ($k,$v) = @_;
+    $k = normk($k);
+    $Handler->{$k} and $Handler->{$k}->($data,@_)
+        or $data->{$k} = $v;
+ }
+ sub _data { $data };
+}
+
+{
+ my $K = 'subject';
+ $Handler->{$K} =sub { 
+    my ($data,$k,$v) = @_;
+    my $h = {};
+    $v =~ s!(serialNumber|C|L|O|CN|ST)=([^,]+)! $h->{$1} = $2 !eg;
+    $data->{$K} = $h;
+    
+    1;
+ };
+}
+
+{
+ my $K = 'not_before';
+ $Handler->{$K} =sub { 
+    my ($data,$k,$v) = @_;
+    $data->{$K} =  $v;
+    $data->{ts_init} = Time::ParseDate::parsedate($v);
+ };
+}
+{
+ my $K = 'not_after';
+ $Handler->{$K} =sub { 
+    my ($data,$k,$v) = @_;
+    $data->{$K} =  $v;
+    $data->{ts_expires} = Time::ParseDate::parsedate($v);
+ };
+}
+{
+ my $K = 'x509v3_subject_alternative_name_dns';
+ $Handler->{$K} =sub { 
+    my ($data,$k,$v) = @_;
+    $data->{san} = $v;
+    
+ };
+}
+
+
+
+{
+ my $K = '_model_key_';
+ $Handler->{$K} =sub { 
+    my ($data,$k,$v) = @_;
+    
+ };
+}
+
+sub grok{
+    my $raw = `cat z`;
+    my $data;
+
+    print "OK: $1" if $raw =~ m!\s+(Not After.*?\n)!; 
+
+    $raw  =~ s!\s+(Not Before)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(Not After)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+
+    $raw  =~ s!\s+(Version)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(Serial Number)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(Signature Algorithm)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(Subject)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(Issuer)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(Public Key Algorithm)\s*:\s*(.*?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(Public-Key)\s*:\s*\(?(.*?)\)?\s*\n! ack($1,$2) !e;
+
+    $raw  =~ s!\s+(OCSP - URI):\s*\(?(.*?\)?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!\s+(CA Issuers - URI):\s*\(?(.*?\)?)\s*\n! ack($1,$2) !e;
+    $raw  =~ s!(X509v3 Subject Alternative Name:\s*\n\s*DNS):\s*\(?(.*?\)?)\s*\n! ack($1,$2) !e;
+    # $raw  =~ s!\s+(Modulus):[\s\r\n]+([\S\s]+)\bExponent:! ack($1,$2) !e;
+
+    print JSON::XS->new->pretty->canonical->encode( _data() );
+
+}
+
+grok();
+# naive();
+# text_parse();
+
+__END__
+

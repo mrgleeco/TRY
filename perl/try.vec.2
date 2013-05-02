@@ -1,0 +1,55 @@
+
+use common::sense;
+
+use Bit::Vector;
+use Benchmark;
+
+  my ($v,$x,$z) = Bit::Vector->new(2048,3);
+  $v->Bit_On(2);
+  $v->Bit_On(3);
+  $v->Bit_On(11);
+  $v->Interval_Fill(5,8);
+  $v->Interval_Fill(46,69);
+  $x->Interval_Fill(40,55);
+
+  #print "x: ", $x->to_Bin(), "\n";
+  #print "v: ", $v->to_Bin(), "\n";
+
+  print "to_eEnum: ", $v->to_Enum(), "\n";
+  print "Size: ", $v->Size(), "\n";      # size of bitstring
+  print "Min: ", $v->Min(), "\n";         # first/lowest bit set
+  print "Max: ", $v->Max(), "\n";         # last/highest bit set
+  print "Norm: ", $v->Norm(), "\n";       # total no. bits set
+
+    #
+    # 1.6m / sec.
+    #
+    timethese
+    (
+        10_000_000,
+        {
+            'and'   => sub { $z->And($v,$x) },
+            'or'    => sub { $z->Or($v,$x)  },
+            'xor'   => sub { $z->Xor($v,$x) },
+            'count' => sub { $v->Norm() },
+        }
+    );
+ 
+    
+    # 10,000 creatives: are you going to loop over 10k to match each?
+    # each creative has numbered attributes that form a string -> fingerprint
+    #
+    # ]-A
+    # ]-B
+    # ]-C
+    #
+    # what does an input fingerprint do to test what's best fit? 
+    # tests for particular attr return match tokens (possibly weighted):
+    # u.x1 -> [ a, b, c ]
+    # u.x2  -> [ q1, q2, q3]
+    # u.x3  -> { b => 9,  d => 4 }
+    #
+    # foreach returned element, it consults the local bitmap to see what creatives had the bit set
+    # in this way, the prelim attr. mapping is building a weight table to see who has most bits set
+    # ex:  ad.123 has no zip code targeting; it leaves entire zip 
+    # ex2: ad.246 has 33 zip codes targeted; it 

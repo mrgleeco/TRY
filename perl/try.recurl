@@ -1,0 +1,106 @@
+#!/usr/bin/env perl
+
+
+# try out a factory interface
+#
+# vim:ft=perl
+#
+
+use common::sense;
+use JSON::XS;
+use Getopt::Long;
+use AnyEvent;
+use AnyEvent::HTTP;
+
+use URL::Encode     ();
+use Time::HiRes     qw(gettimeofday);
+
+use lib "./lib";
+use Std::Util       qw( _warns );
+use Factory;
+
+my ($data, $stat);
+
+use constant {
+    DEBUG       => $ENV{DEBUG} || 0,
+};
+
+my %opts = (
+    'q=s'       => 'query string',
+    'params=s'  => 'simple cgi params to pass; eg.  "x=1&y=2&foo=bar" ',
+    'v'         => 'show alot of data',
+    'h'         => 'here we are!',
+    'u'        => 'url',
+    'k'        => 'keep-alive',
+);
+#
+sub main {
+    my $o  = shift || {};
+        
+    GetOptions( $o, keys %opts );
+
+    my $D    = $o->{v} || 0;
+    
+    if ($o->{h} ) { 
+        _warns( "usage: $0 <opt> ", \%opts); 
+        _warns( "available interfaces", \@f );
+        exit;
+    }
+
+    my $url = $o->{u}
+        or die "cannot load $id ";
+
+    $D  and _warns( "worker $id ", $w );
+
+    my $param = $o->{params}
+        ? URL::Encode::url_params_mixed($o->{params}, 1 ) 
+        : {};
+
+    $param->{q} = $o->{q} if $o->{q};
+
+
+
+sub fetch_this($) {
+    my ($url)       =@_;
+    my $r           = {
+        url => $url,
+        persistent  => 1,
+        keepalive   => 1,
+    }
+    $r->{url} 
+        or ( _warns( "failed to get url", $r ) and die );
+
+    $D  and _warns( " input param " , $param );
+    $D  and _warns( " req ",  $r );
+    $D  and _warns( " body ".  $r->{body}  ) if $r->{body};
+
+    $stat->{t0}     = AE::time;
+    my $cv          = AE::cv; 
+
+    $g; $g = AnyEvent::HTTP::http_request( 
+        ( delete $r->{method} || 'GET' ) => delete $r->{url},
+        %$r,
+        sub { 
+            my ($raw,$hdr)          = @_;
+            $stat->{ts_fetch}       = AE::time - $stat->{t0};
+
+            $D      and _warns( "raw\n $raw " );
+            $D      and _warns( "header", $hdr );
+            $cv->send( $res );
+        }
+    );
+    return $r;
+}
+    $data = $cv->wait;
+    _warns( "result", $data );
+    _warns("stats: ", $stat ) if $stat;
+
+}
+
+my $opt = { };
+
+main($opt);
+
+
+__END__
+

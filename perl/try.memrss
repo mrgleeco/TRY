@@ -1,0 +1,43 @@
+
+use common::sense;
+
+use lib './lib';
+use AEMP;
+use Std::Util   qw(_warns _logit );
+use Time::Slot;
+use AnyEvent;
+use AnyEvent::Util;
+
+BEGIN { $ENV{DEBUG} = 1; };
+
+my $sctr    = Time::Slot->new({ interval =>  300 } );
+
+sub main { 
+    my $cv = AE::cv;
+    my %run;
+
+    $run{ timed_op } = AE::timer 0.05, 1, sub { 
+        my ($slot,undef,$date,$sec_rem) = $sctr->current_slot();
+        _logit(" watch timer slot=$slot $sec_rem sec. remain " );
+        
+    };
+=cut
+=cut
+    $run{ process_stats }   = AE::timer 1,1,  \&memcheck;
+
+    $cv->recv;
+}
+
+
+# testing for memory leak
+sub memcheck {
+    my $gx; $gx = AnyEvent::Util::run_cmd(
+        qq! grep RSS /proc/$$/status !,
+        '>' => sub { _logit( @_ ) if @_ },
+    );
+    $gx->cb( sub { undef $gx } );
+}
+
+
+
+main();

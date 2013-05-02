@@ -1,0 +1,45 @@
+
+my %src = (
+    ipv4    => 'http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip',
+    ipv6    => 'http://geolite.maxmind.com/download/geoip/database/GeoIPv6.csv.gz',
+);
+
+=cut
+
+NOTES - 403 forbidden after only a couple of tries.  Probably want to download. If it fails, that should be fatal. 
+
+=cut 
+
+use common::sense;
+use AnyEvent;
+use AnyEvent::Util;
+
+my $cv = AE::cv;
+
+my %g;
+my %r;
+
+print STDERR qx{  mkdir -m 1777 /tmp/$$  };
+-d "/tmp/$$" or die "failed to create /tmp/$$";
+
+$cv->begin;
+$g{4} = AnyEvent::Util::run_cmd(
+    qq!curl -sv http://geolite.maxmind.com/download/geoip/database/GeoIPCountryCSV.zip > /tmp/$$/GeoIPCountryCSV.zip !,
+    '>'     => sub { print STDERR @_ },
+    '2>'     => sub { print STDERR @_ },
+);
+
+
+$cv->begin;
+$g{6} = AnyEvent::Util::run_cmd(
+    qq!curl -sv http://geolite.maxmind.com/download/geoip/database/GeoIPv6.csv.gz | gunzip -c -  > /tmp/$$/GeoIPv6.csv !,
+    '>'     => sub { print STDERR @_ },
+    '2>'     => sub { print STDERR @_ },
+);
+
+$_->cb( sub { $cv->end } )
+    for values %g;
+
+
+$cv->wait;
+
