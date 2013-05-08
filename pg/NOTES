@@ -1,0 +1,60 @@
+
+--ex. file as a foreign source
+CREATE FOREIGN TABLE passwd (
+    username text       ,
+    pass text       ,
+    uid int4        ,
+    gid int4        ,
+    gecos text      ,
+    home text       ,
+    shell text
+) SERVER file_server
+OPTIONS (
+    format 'text'       ,
+    filename '/etc/passwd',
+    delimiter ':'       , 
+    null ''
+);
+
+
+
+--usage is normal
+--
+$ select * from passwd order by uid asc limit 3;
+username  | pass | uid | gid | gecos  | home      | shell
+----------+------+-----+-----+--------+-----------+-----------
+root      | x    |   0 |   0 | root   | /root     | /bin/bash
+daemon    | x    |   1 |   1 | daemon | /usr/sbin | /bin/sh
+bin       | x    |   2 |   2 | bin    | /bin      | /bin/sh
+(3 rows)
+
+
+
+
+--ex. redis as foreign data source
+--- uses:
+--- Accessing keys set by clients that can not connect to PostgreSQL.
+--- Cache data and accessing database cache.
+--- "Global" variables.
+--- Locks.
+--- Statuses.
+--- Faster increments.
+--- Optimization without much changes in existing source code.
+
+CREATE SERVER redis_server 
+FOREIGN DATA WRAPPER redis_fdw 
+OPTIONS (
+    address '127.0.0.1' ,
+    port '6379'
+);
+
+CREATE FOREIGN TABLE redis_db (
+    key text        ,
+    value text
+)SERVER redis_server
+OPTIONS (
+    database '0'
+);
+
+--usage:
+select * from redis_db

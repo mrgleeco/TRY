@@ -1,0 +1,61 @@
+
+
+# download claim summary via csv from myuhc.com
+# parse the csv so we can match up files downloaded; aka EOB aka explanation of benefits (PDF)
+#
+# Claim Number,Patient Name,Date Visited,Visited,Claim Type,Claim Status,Date Processed,Billed Amount,Applied to Deductible,Paid by Plan,Patient Responsibility,Paid at Visit/Pharmacy,You Owe,Flagged to Watch,Notes,Marked as Paid,
+# use strict;
+
+my @col;
+my @row;
+my ($meta,$data);
+
+while(<>) { 
+    chomp;
+    my @f = map { $_ =~ /"(.*)"/ ? $1 : $_ } split(/,/, $_);
+    $f[1] or next;
+    if (!@col){
+        for my $c (@f) { $c =~ s!\s+!_!g; push @col, lc($c) }
+        print "COL: ", join('|', @col), "\n";
+        next;
+    }
+
+    my %r = map  {$col[$_] => $f[$_] } (0..$#col);
+    #print "$r{claim_number}\n";
+    push @row,\%r;
+}
+
+print  "ROWS: $#row\n";
+
+
+# if there was a deductable, but no file, then b/c there was no EOB (pdf) to fetch :(
+#
+#
+for my $r (@row){
+    $r->{applied_to_deductible} > 0 or next;
+    my @f = glob('*-'.$r->{claim_number}.'-*');
+    $r->{file} =  $f[0] || '';
+
+    $f[0] or warn "MISSING claim: ", $r->{claim_number}, "\t", $r->{date_visited},"\t", $r->{billed_amount}, "\n";
+
+    print join('|', map { $r->{$_} } qw(claim_number applied_to_deductible you_owe file) ), "\n";
+
+    $r->{file} or next;
+    $meta->{sum} += $r->{applied_to_deductible};
+    push @{$meta->{file}},$f[0]  if $f[0];
+
+    $meta->{self} += $r->{applied_to_deductible} if $r->{patient_name} =~ m@greg@i;;
+
+}
+
+print "SUM: $meta->{sum}\n";
+print "SELF: $meta->{self}\n";
+print "DEPS: ", ($meta->{sum} - $meta->{self} ), "\n";
+print "total PDF: ", scalar @{$meta->{file}}, "\n";
+print join("\n", @{$meta->{file}}), "\n";
+
+my $zip_file = 'hra_claims-20130507.zip';
+my $zip_cmd = "zip $zip_file " . join(" ", @{$meta->{file}}), "\n";
+print qx{rm -f $zip_file; $zip_cmd }
+
+
