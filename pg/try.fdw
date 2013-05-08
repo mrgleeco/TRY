@@ -1,4 +1,7 @@
 
+--FDW aka foreign data wrapper FTW!
+-- see more at http://pgxn.org/tag/fdw/
+
 --ex. file as a foreign source
 CREATE FOREIGN TABLE passwd (
     username text       ,
