@@ -22,8 +22,7 @@ OPTIONS (
 
 
 --usage is normal
---
-$ select * from passwd order by uid asc limit 3;
+-- select * from passwd order by uid asc limit 3;
 username  | pass | uid | gid | gecos  | home      | shell
 ----------+------+-----+-----+--------+-----------+-----------
 root      | x    |   0 |   0 | root   | /root     | /bin/bash
@@ -43,6 +42,8 @@ bin       | x    |   2 |   2 | bin    | /bin      | /bin/sh
 --- Statuses.
 --- Faster increments.
 --- Optimization without much changes in existing source code.
+--usage:
+-- select * from redis_db
 
 CREATE SERVER redis_server 
 FOREIGN DATA WRAPPER redis_fdw 
@@ -59,5 +60,50 @@ OPTIONS (
     database '0'
 );
 
---usage:
-select * from redis_db
+
+
+--ex. for RSS
+-- see http://multicorn.org/
+CREATE SERVER rss_server 
+FOREIGN DATA WRAPPER rss_fdw 
+OPTIONS(
+foreign data wrapper multicorn options (
+    wrapper 'multicorn.rssfdw.RssFdw'
+);
+
+CREATE FOREIGN TABLE radicalerss (
+    "pubDate" timestamp,
+    description character varying,
+    title character varying,
+    link character varying
+) server rss_srv options (
+    url     'http://radicale.org/rss/'
+);
+
+select "pubDate", title, link from radicalerss limit 10;
+
+
+-- use PLPERL to do some work. To do this, compile with perl
+CREATE OR REPLACE FUNCTION json_hash_delete(__json VARCHAR, __key VARCHAR) RETURNS VARCHAR AS $$
+    my ($json, $op, $k, $v) = @_;
+    return $json if ! defined($json) or ! defined($k);
+    my $e = decode_json($json);
+    ref $e eq 'HASH'
+        or return $json;
+
+    delete $e->{$k} = $v;
+    return encode_json($e);
+$$ LANGUAGE plperl;
+
+CREATE OR REPLACE FUNCTION json_hash_add(__json VARCHAR, __key VARCHAR, __val VARCHAR) RETURNS VARCHAR AS $$
+    my ($json, $k, $v) = @_;
+    return $json if ! defined($json) or ! defined($k);
+    my $e = decode_json($json);
+    ref $e eq 'HASH'
+        or return $json;
+    $e->{$k} = $v;
+    return encode_json($e);
+$$ LANGUAGE plperl;
+
+--
+-- PUBSUB in PG. fwiw, it seems a slower mechanism than redis pubsub
