@@ -9,28 +9,41 @@ use AnyEvent::HTTP;
 my ($meta, $data);
 
 sub main {
-    my $o  = shift || {};
-    # suck up the alexa 
+    # suck up the alexa from
+    # https://github.com/google/namebench/blob/master/data/alexa-top-2000-domains.txt
+    my ($f,$max) = @ARGV;
+    -s $f or die "usage: $0 <alexa> <max>";
+    $max ||= 1000;
+    my $n = 0;
     %$data = map { 
-        ++$n => { n => $n, d => $_ } } grep { s/A (\S+)\.$/$1/ }
-    }(`cat alexa.txt`);
+        ++$n => { n => $n, d => $_ } 
+    } grep {chomp; s!A (\S+)\.$!$1! } (`cat $f | head -500`);
+
     my $cv = AE::cv sub { 
         $meta->{sum}= scalar grep { $_->{srv} } values %$data;
     };
-    for my $r values (%$data){
+    $meta->{ts_init} = AE::time;
+
+    for my $r (values %$data){
         $cv->begin;
         $r->{t} = AE::time;
         AnyEvent::HTTP::http_head(
-            $url, 
+            "http://$r->{d}/",
             sub {
                 my (undef, $hdr) = @_;
-                $r->{srv} = $hdr->{Server} || 'UNDEFINED';
-                printf("%2.3f\t %d \t%s\t %s\n", AE::time - delete($r->{t}) $r->{n}, $r->{d}, $r->{srv})
+                $r->{status} = $hdr->{Status};
+                $r->{srv} = $hdr->{server} || 'UNDEFINED';
+                # DEBUG print JSON::XS->new->pretty->encode($hdr);
+                print STDERR sprintf("%2.3f\t %d \t%s\t %d\t %s\n", AE::time - delete $r->{t}, $r->{n}, $r->{d}, $r->{status}, $r->{srv} );
                 $cv->end;
-            }
+            },
         );
     }
     $cv->wait;
+    $meta->{cloudflare}++ 
+        for grep { $_->{server} eq 'cloudflare-nginx'} values %$data;
+    $meta->{ts_run} = sprintf("%2.3f", AE::time - delete $meta->{ts_init} );
+    print JSON::XS->new->pretty->encode($meta);
 }
 
 main()
