@@ -1,0 +1,39 @@
+
+# vim:ft=perl
+
+use common::sense;
+use JSON::XS;
+use AnyEvent;
+use AnyEvent::HTTP;
+
+my ($meta, $data);
+
+sub main {
+    my $o  = shift || {};
+    # suck up the alexa 
+    %$data = map { 
+        ++$n => { n => $n, d => $_ } } grep { s/A (\S+)\.$/$1/ }
+    }(`cat alexa.txt`);
+    my $cv = AE::cv sub { 
+        $meta->{sum}= scalar grep { $_->{srv} } values %$data;
+    };
+    for my $r values (%$data){
+        $cv->begin;
+        $r->{t} = AE::time;
+        AnyEvent::HTTP::http_head(
+            $url, 
+            sub {
+                my (undef, $hdr) = @_;
+                $r->{srv} = $hdr->{Server} || 'UNDEFINED';
+                printf("%2.3f\t %d \t%s\t %s\n", AE::time - delete($r->{t}) $r->{n}, $r->{d}, $r->{srv})
+                $cv->end;
+            }
+        );
+    }
+    $cv->wait;
+}
+
+main()
+
+
+
