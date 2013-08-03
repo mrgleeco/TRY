@@ -1,0 +1,41 @@
+#
+deb [arch=amd64] http://ubuntu.hyperdex.org oneiric main
+
+# Subsequent invocations of the package manager may complain about the absence of the relevant package signing key. You can download the Ubuntu public key and add it with:
+
+apt-key add hyperdex.gpg.key
+# The following code may be copied and pasted to quickly setup the Ubuntu repository:
+
+sudo wget -O /etc/apt/sources.list.d/hyperdex.list \
+    http://ubuntu.hyperdex.org/hyperdex.list
+    sudo wget -O - http://ubuntu.hyperdex.org/hyperdex.gpg.key \
+    | sudo apt-key add -
+    sudo apt-get update
+    sudo apt-get install hyperdex
+
+
+
+# after installing
+# start & initialize the coordinator
+#
+hyperdex coordinator -f -l 127.0.0.1 -p 1982
+
+
+# now, start the worker daemons
+hyperdex daemon -f --listen=127.0.0.1 --listen-port=2012 \
+    --coordinator=127.0.0.1 --coordinator-port=1982 --data=/path/to/data1
+hyperdex daemon -f --listen=127.0.0.1 --listen-port=2013 \
+   --coordinator=127.0.0.1 --coordinator-port=1982 --data=/path/to/data2
+hyperdex daemon -f --listen=127.0.0.1 --listen-port=2014 \
+    --coordinator=127.0.0.1 --coordinator-port=1982 --data=/path/to/data3
+
+# now good to try the demo.py code
+
+# Shutting down a cluster is a three step process. 
+# First, stop all client traffic. 
+# Second, kill all the daemon processes using SIGHUP, SIGINT, or SIGTERM. 
+# The daemons will inform the coordinator of their departure, and the coordinator will track which daemons departed successfully. 
+# Finally, kill each coordinator process using SIGHUP, SIGINT, or SIGTERM.
+
+# To restore a cluster, all you need to do is first restart the coordinator nodes and then restart the daemon nodes. 
+# Because state was cleanly saved to the disk, this restart process will bring back the entire state of the database without data loss.
