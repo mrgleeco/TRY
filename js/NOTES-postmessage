@@ -1,0 +1,49 @@
+
+# HOW-TO: cross-domain communication with postmessage 
+
+## with iframes, CORS is a pita, this works instead
+
+
+
+window parent is on foo.com:
+
+    var iframeHost = 'http://bar.com',
+        doSomethingSpecial = function() {
+            // do whatever you want triggered by iframe
+        },
+        receiveMessage = function(event) {
+          if (event.origin !== iframeHost )
+            return;
+            console.log(' parent - inside recieveMessage -- ', event.data );
+
+            if (event.data == "CANCEL" ) { 
+                console.log( 'GOT cancel order via postmsg!' );
+                doSomethingSpecial();
+            }
+        };
+
+    // later on: 
+    $(document).ready(function(){
+        window.addEventListener("message", receiveMessage, false);
+        $(iframe).on("load", function(){
+            var iframe = document.getElementById('bar_dot_com_iframe');
+            iframe.contentWindow.postMessage('cancel?', iframeHost);
+        })
+    });
+
+
+iframe is called for content on bar.com:
+
+
+    <html><head></head><body><script type="text/javascript"><!--
+    var a=document.createElement('a');
+    a.href=document.referrer;
+    var loc = location.protocol + '//' + a.hostname;
+    function receiveMessage(event) {
+        if ( event.origin !== loc ) return;
+        console.log( 'loc=' + loc + ' recievMesssage() fires ');
+        event.source.postMessage("CANCEL", event.origin);
+    }
+    window.addEventListener("message", receiveMessage, false);
+    console.log( 'loc=' + loc + ' adds listener');
+    --></script> </body></html>
