@@ -1,0 +1,15 @@
+
+j
+
+# send an SMS
+# -testing url links
+
+export twilio_user=XXX
+export twilio_key=ZZZ
+curl -X POST https://api.twilio.com/2010-04-01/Accounts/$twilio_user/SMS/Messages.json \
+    -u "$twilio_user:$twilio_key" \
+        -d "From=+13312002447" \
+        -d "To=+14156836811" \
+        -d 'Body=there'\'s gold in those hills: bing.com/  and http://yahoo.com/robots.txt?sms=1'
+
+flow:
