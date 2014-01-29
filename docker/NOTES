@@ -1,0 +1,58 @@
+### gleeco docker system setup
+
+
+This sets up a base image of Ubuntu 13.04
+
+    $ sudo debootstrap raring raring
+    $ sudo tar -C raring -c . | sudo docker import - raring
+    a29c15f1bf7a
+    $ sudo docker run raring cat /etc/lsb-release
+    DISTRIB_ID=Ubuntu
+    DISTRIB_RELEASE=13.04
+    DISTRIB_CODENAME=raring
+    DISTRIB_DESCRIPTION="Ubuntu 13.04"
+
+NB: i've modified this image to include gcc + make
+
+To modify this image, run this:
+    $ sudo docker run raring 
+    root@c0497223:/# apt-get install gcc make
+    [ctl-D to exit]
+    $ `sudo docker commit 84f4f3086c0f gleeco/raring-base`
+
+
+
+
+### command reference:
+
+ `sudo docker ps`
+    List running procs
+
+ `sudo docker ps -a`
+    List all procs dead or alive
+
+`sudo docker build -t="gleeco/proj" .`
+    Build an image using current working dir + its Dockerfile
+
+`sudo docker commit 84f4f3086c0f gleeco/raring-base`
+    commit a version to the repo
+
+ `sudo docker images`
+    List images
+
+`sudo docker run -t -i -p 8080:8080 -v=`pwd`:/proj -w=/proj gleeco/proj`
+    -p expose the container port 8080 to the host port 8080.  
+    -v is the shared directory.  
+    -w is the working directoriy inside the container.  
+    -t and -i for interactive tty.  
+    gleeco/proj is the name of the image. 
+
+### typical recipe:
+
+mkdir proj && cd proj
+vim Dokcerfile
+sudo docker build -t="gleeco/proj" .
+sudo docker run -t -i -p 8080:8080 -v=`pwd`:/proj -w=/proj gleeco/proj
+
+
+vim: ft=markdown

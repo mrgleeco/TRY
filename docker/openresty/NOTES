@@ -1,0 +1,14 @@
+
+see https://github.com/torhve/openresty-docker
+
+sudo docker build -t="gleeco/openresty" .
+
+sudo docker run -t -i -p 8080:8080 -v=`pwd`:/helloproj -w=/helloproj gleeco/openresty 
+
+-p expose the container port 8080 to the host port 8080.  
+-v is the shared directory.  
+-w is the working directoriy inside the container.  
+-t and -i for interactive tty.  
+gleeco/openresty is the name of the image. 
+List images with 
+    sudo docker images
