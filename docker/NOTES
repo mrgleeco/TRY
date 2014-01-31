@@ -47,6 +47,12 @@ To modify this image, run this:
     -t and -i for interactive tty.  
     gleeco/proj is the name of the image. 
 
+`sudo docker ps -a -q | xargs sudo docker rm`
+    Clean up stale containers. This is necessary before deleting any images
+
+`sudo docker rmi da3ff89d325f`
+    Remove the image (frees up the space)
+
 ### typical recipe:
 
 mkdir proj && cd proj
