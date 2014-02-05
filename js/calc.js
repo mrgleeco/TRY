@@ -9,7 +9,9 @@ var incr    = {};   // counters
 var m = memo;
 
 
-var fill = function(attr,n){ 
+// XXX add param to define period of number. 
+// use day,hour,minute,second --as well as unix timestamps (eg. 300 )
+var fill = function(attr,n){
     var e = m[attr] || (m[attr] = {});
     e.day = n;
     if ( ! e.day ) {
@@ -26,29 +28,15 @@ var fill = function(attr,n){
 
 // date calcs - we use unix seconds and relative dates
 m.days          = 3;            // generate N days data
-m.days_offset   = 1;           // ending N days ago (-1 = yesterday)
-m.t_now         = Date.now() / 1000;
+m.days_offset   = 0;           // ending N days ago (-1 = yesterday)
+m.t_now         = moment().format('X');
 m.t_init        = (m.t_now - (86400 * m.days_offset)) - ( m.days * 86400);
 m.t_end         = m.t_now - ( m.days_offset * 86400);
-m.date_init     = moment.unix(m.t_init); // debug only
-m.date_end      = moment.unix(m.t_end); // debug only
+m.date_init     = moment.unix(m.t_init).format('YYYY-MM-DD HH:mm:ss');
+m.date_end      = moment.unix(m.t_end).format('YYYY-MM-DD HH:mm:ss');
 
 
-/* 
- * don't need this...
-for (var d = m.days; d > 0; d--) {
-    var start_sec = m.t_now - ( d * 86400 * 1000 * m.days_offset);
-    start_sec = start_sec < m.t_init ? m.t_init :start_sec;
-    console.log('day.'+ d + ' starts at ', moment(start_sec));
-}
-
-*/
-
-// sine wave distro
-m.peak_hour_gmt = 20;           // peak hour
-m.peak_variance = 0.45;         // delta of min + max of traffic as sine wave
-m.week_variance = 0.1;          // how much a week should move
-
+// application metircs -- for now think Apache
 m.pv_bytes      = 1024 * 64;    // bytes per page view
 m.asset_ct      = 4;            // avg # assets delivered per page (png,css,js,etc)
 m.asset_byte    = 1024 * 2;     // avg bytes of asset
@@ -56,14 +44,18 @@ m.asset_byte    = 1024 * 2;     // avg bytes of asset
 m.req_resp_time = 0.45;         // use 95th percentile for page delivery
 m.unique_ip     = 600000;       // uniques: a browser+ip hash
 
+// sine wave distro
+m.peak_hour_gmt = 20;           // peak hour
+m.peak_variance = 0.45;         // delta of min + max of traffic as sine wave
+m.week_variance = 0.1;          // how much a week should move
 
+// populate some system stuff for use later
 sys.uptime_days = 12;
 sys.ram         = 4 * Math.pow(1024,3); // 4GB RAM
+sys.ts_start    = moment().format('X') - (86400 * sys.uptime_days);
 
-
-sys.ts_start    = Date.now() - (86400 * sys.uptime_days);
-
-// fill out the data
+// fill out the data for per day/hour/min/sec
+// XXX - fix when #s low and per sec is sub fractional
 
 fill('pv',100000);
 fill('sessions', m.pv.day / m.unique_ip );  
@@ -77,7 +69,7 @@ fill('req_bytes_in', (m.pv.day * m.pv_bytes) + ( m.pv.day * m.asset_byte * m.ass
 m.req_bytes_in_avg = m.req_bytes_in.day / m.req.day;
 m.req_bytes_out_avg = m.req_bytes_out.day / m.req.day;
 
-// calc # reqs. per hour
+// calc # reqs. per hour distribution
 
 m.dist_max = (1 + m.peak_variance) * m.req.hour;
 m.dist_min = (1 - m.peak_variance) * m.req.hour;
@@ -103,37 +95,25 @@ m.sum = 0;
 for (var i = 0; i < 24; i++ ){
     var z = (12-i) * step;
     var val = (i <= 12) ? m.pv.hour + (z * range) : m.pv.hour - (z * range);
-    var j = Math.random() * m.req.min;    // add some random based on 15 min. sample val
-    val += j;
+    val += Math.random() * m.req.min * 10;    // add some random based on 15 min. sample val
     hourly_avg[hr] = Math.floor(val);
     m.sum+= val;
     //console.log('add hr.' + hr + ' val=' + hourly_avg[hr], ' z=' + z, ' j=' + j);
     hr = (hr == 23) ? 0 : hr + 1;
-    /*
-    */
 }
 
 
 console.log(memo);
-console.log(hourly_avg);
 /*
 console.log(hourly_avg.length);
 console.log(hourly_avg);
 console.log(memo);
  */
 
-/*
-hr = 0;
-_.forIn(hourly_avg, function(i) {
-    console.log('hr.' + hr  + ' GOT i?' + i);
-    hr++;
-});
-*/
 
-
-
-
-
+//
+// now we can finally run it!
+//
 var tick = m.t_init;
 
 while(tick < m.t_end ) {
@@ -183,23 +163,24 @@ function clf_log(e) {
 function gen_pageview(t) {
 
 
-var mock = {
-    ip: function() { 
-        return '127.0.0.1';
-    },
-    ua: function() { 
-        return 'Mozilla';
-    },
-    ref: function() { 
-        return 'http://bing.com';
-    },
-    bytes: function() { 
-        return 1024;
-    },
-    uri: function() {
-        return '/mean/green';
-    }
-};
+    // XXX - figure this out as dedicated module
+    var mock = {
+        ip: function() { 
+            return '127.0.0.1';
+        },
+        ua: function() { 
+            return 'Mozilla';
+        },
+        ref: function() { 
+            return 'http://bing.com';
+        },
+        bytes: function() { 
+            return 1024;
+        },
+        uri: function() {
+            return '/mean/green';
+        }
+    };
 
 
 
