@@ -1,6 +1,7 @@
 
 _ = require('lodash');
 moment = require('moment');
+casual = require('casual');
 
 var memo    = {};  // calculation vars
 var sys     = {};   // system attrs
@@ -159,8 +160,62 @@ function clf_log(e) {
     console.log( msg );
 }
 
+/*
+var muck new Mock('apache', { 
+    avg_session_size:  3,
+    avg_asset_count: 2,
+});
+*/
+
+
+function _init_apache_data(){ 
+    var agent_list = require('app/apache/agent-list.json');
+    var domain_list = require('app/apache/domain-list.json');
+    var country_list = require('app/apache/country-list.json');
+    var method_list = [ 'GET', 'POST', 'HEAD' ];
+}
+
+_init_apache_data();
+
+function chance(pct, a, b) {
+    return (Math.random() <= pct) ? a : (b ? b : '');
+}
+
+
+// 
+function variance(n, pct) {
+    var x = Math.random();
+    // half the time less, half the time more
+    var nb = (x <= 0.50)
+        ? n - (n * x * (pct || 1))
+        : n + (n * x * (pct || 1));
+
+    return Math.floor(nb);
+}
+
+
+
+function apache_mock_event(t) {
+    var ev = {
+        ts:  moment.unix(t).format('YYYY-MM-DD HH:mm:ss'),
+        ip : casual.ip,
+        referer : chance(0.5, _.sample(domain_list)),
+        ua : _.sample(agent_list),
+        ctry : chance(0.5, 'US', _.sample(country_list)),
+        uri : chance(0.5, 'US', _.sample(short_list), _.sample(long_list)),
+        method : chance(0.9, 'GET', _.sample(method_list)),
+        bytes : variance(1024)
+    };
+    return ev;
+
+}
 
 function gen_pageview(t) {
+    var e = JSON.stringify(apache_mock_event(t), null, 4);
+    console.log(e);
+}
+
+function gen_pageview_FIRST(t) {
 
 
     // XXX - figure this out as dedicated module
