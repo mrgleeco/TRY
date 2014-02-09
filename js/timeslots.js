@@ -42,13 +42,14 @@ function variance(n, pct) {
 function init_series() { 
 
     // build dummy entries; ex. 1 hour of observations every 2 sec.
-    var t = moment().unix();
 
-    for (var i=0; i <= 3600; i+=2){ 
+
+    var start_time  = moment().unix();
+    for (var i=0; i <= 3600; i+=12){ 
 
         var ct = variance(100, 0.1);    // add some vari
 
-        t -= i;     // Marty sez go back in time
+        var t = start_time - i;     // Marty sez go back in time
 
         // figure out our slot math
         var slot = Math.floor(t / step);    // absolute slot #
@@ -73,8 +74,13 @@ function deflate_series() {
     _.each(obs, function(ob,key) {
 
         // sort the observations by time order
-        var timeSort = function(a,b) { return a[0] - b[0]; };
-        ob.sort(timeSort);
+        ob.sort(function(a,b) { return a[0] - b[0]; });
+
+        var base = key.match(/:(\d+)$/)[1];
+        var s = ( stat[base] = {} );
+        s.start_time = moment.unix( base * step).format();
+        s.event_ct = ob.length;
+        s.sum = 0;
 
         var len  = (ob.length -1);
 
@@ -95,13 +101,15 @@ function deflate_series() {
 
             t_prev = t_curr;                    // save this observation for next
             n_prev = n_curr;                    // save this observation for next
+            s.sum+= n_curr;
 
             // console.log('after: ', ob[i]);
         }
+        s.avg = ( s.sum ) ? s.sum / s.event_ct : 0;
     });
 
     stat.json_after = JSON.stringify(obs).length;
-    stat.size_delta = 1 - ( stat.json_len_before / stat.json_len_after);
+    stat.size_delta = 1 - ( stat.json_before / stat.json_after);
 }
 
 
