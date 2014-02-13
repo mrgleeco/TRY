@@ -1,11 +1,11 @@
 
 /* DEMO: how to compress the timestamps  + values as deltas in a time series for min. storage space
- * thesis: storing absolute resolution in 5 min time buckets should keep it hidden, while revealing the 
+ * thesis: storing absolute resolution in 5 min time buckets should keep it hidden, while revealing the
  * full series numeric attributes
  *
- * TODO - 
+ * TODO -
  *  - benchmarks
- *  - is swapping out / in-place replacement faster or better or desired? 
+ *  - is swapping out / in-place replacement faster or better or desired?
  *  - make millisecond option
  *  - can we use unsigned ints & pack format?
  *
@@ -19,33 +19,36 @@ var keybase = 'hits:';
 var obs = {};
 var stat = {};
 
-function main()  { 
+var DEBUG = 0;
+var D = DEBUG ? console.log : function() { return; };
+
+var main = function()  {
 
     init_series();
-    console.log('----INITIAL---- ', obs);
+    D('----INITIAL---- ', obs);
 
     deflate_series();
-    console.log('----DEFLATE---- ', obs);
+    D('----DEFLATE---- ', obs);
     inflate_series();
-    console.log('----INFLATE---- ', obs);
-    console.log(stat);
+    D('----INFLATE---- ', obs);
+    D(stat);
 
-}
+};
 
-function variance(n, pct) {
+var variance = function(n, pct) {
     var x = Math.random();
     // half the time less, half the time more
     var nb = (x <= 0.50) ? n - (n * x * (pct || 1)) : n + (n * x * (pct || 1));
     return Math.floor(nb);
-}
+};
 
-function init_series() { 
+var init_series = function() {
 
     // build dummy entries; ex. 1 hour of observations every 2 sec.
 
 
     var start_time  = moment().unix();
-    for (var i=0; i <= 3600; i+=12){ 
+    for (var i=0; i <= 3600; i+=12){
 
         var ct = variance(100, 0.1);    // add some vari
 
@@ -53,22 +56,21 @@ function init_series() {
 
         // figure out our slot math
         var slot = Math.floor(t / step);    // absolute slot #
-        var offset = t % step;              // sec. remainder 
+        var offset = t % step;              // sec. remainder
 
-        // get our current slot bucket 
+        // get our current slot bucket
         var ob =  obs[keybase + slot] || ( obs[keybase + slot] = [] );
 
         // push this observation to its slot bucket
         ob.push([offset, ct]);
     }
     stat.json_before = JSON.stringify(obs).length;
-}
+};
 
 
 
 
-
-function deflate_series() { 
+var deflate_series = function () {
     // compaction example
 
     _.each(obs, function(ob,key) {
@@ -89,12 +91,12 @@ function deflate_series() {
         var n_prev = ob[0][1];
 
         // swap each observation as delta
-        for(var i=1; i<=len; i++){ 
+        for(var i=1; i<=len; i++){
 
             var t_curr = ob[i][0];
             var n_curr = ob[i][1];
 
-            // console.log('before: ', ob[i]);
+            // D('before: ', ob[i]);
 
             ob[i][0] = t_curr - t_prev;
             ob[i][1] = n_curr - n_prev;
@@ -103,18 +105,18 @@ function deflate_series() {
             n_prev = n_curr;                    // save this observation for next
             s.sum+= n_curr;
 
-            // console.log('after: ', ob[i]);
+            // D('after: ', ob[i]);
         }
         s.avg = ( s.sum ) ? s.sum / s.event_ct : 0;
     });
 
     stat.json_after = JSON.stringify(obs).length;
     stat.size_delta = 1 - ( stat.json_before / stat.json_after);
-}
+};
 
 
 
-function inflate_series() {
+var inflate_series = function() {
 
     _.each(obs, function(ob,key) {
 
@@ -126,20 +128,24 @@ function inflate_series() {
         var n_prev = 0;
         var len = (ob.length -1);
 
-        for(var i=0; i<=len; i++){ 
+        for(var i=0; i<=len; i++){
 
             ob[i][0] += t_prev;
             ob[i][1] += n_prev;
-            ob[i][2] = moment.unix( ob[i][0]).format(); // for debug 
+            ob[i][2] = moment.unix( ob[i][0]).format(); // for debug
 
             t_prev = ob[i][0];                    // save this observation for next
             n_prev = ob[i][1];                    // save this observation for next
         }
     });
-}
+};
 
 
 
-main();
+// main();
 
+
+module.exports = function() {
+    main(1);
+};
 
