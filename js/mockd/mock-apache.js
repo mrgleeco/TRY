@@ -1,12 +1,14 @@
 
-_ = require('underscore');
-moment = require('moment');
-mock = require('mock-tools');
+var _ = require('underscore');
+var moment = require('moment');
+var mock = require('./mock-tools');
 
 
-// TODO - get rid of casual - only used for IP and URI (color name) -- we can do that w/o it.
-
-var DEFAULT = { 
+//
+// XXX - do more cool sessioning stuff based on params.
+// XXX - mock event may want to return more than one event;
+//
+var DEFAULT = {
 
     days : 0,
     hours : 1,
@@ -29,47 +31,36 @@ var Method = [ 'GET', 'POST', 'HEAD' ];
 
 var Agent =require('./app/apache/agent-list.json');
 var Country = require('./app/apache/country-list.json');
-var domain_list = require('./app/apache/domain-list.json');
+
 var Referer = [];
+var domain_list = require('./app/apache/domain-list.json');
 _.each(domain_list, function(d) { Referer.push('http://' + d + '/'); });
+
 var Uri = [];
-_.each( ['blue', 'red', 'green'], function(str){ Uri.push('/'+str); });
+_.each( mock.colors(), function(str){ Uri.push('/'+str); });
 
-
-var MockApache = function MockApache(cfg)  { 
-    this.cfg = _.extend(cfg, DEFAULT);
-    this.memo = {
-        t_now : moment().format('X'),
-        t_init : (m.t_now - (86400 * m.days_offset)) - ( m.days * 86400),
-        t_end : m.t_now - ( m.days_offset * 86400),
-        date_init : moment.unix(m.t_init).format('YYYY-MM-DD HH:mm:ss'),
-        date_end : moment.unix(m.t_end).format('YYYY-MM-DD HH:mm:ss'),
-        req_bytes_in_avg : cfg.pv_bytes / cfg.pageviews,
-        req_bytes_out_avg : cfg.pv_bytes_in / cfg.pageviews,
-    };
+var init  = function(cfg) {
+    this.cfg = _.extend(cfg || {}, DEFAULT);
 };
 
 
-var mock_event = function(t) { 
+var event = function(t) {
     return {
         timestamp : t,
         date :  moment.unix(t).format(), // format('YYYY-MM-DD HH:mm:ss'),
         ip : mock.random_ip(),
         referer : mock.chance(0.8, _.sample(Referer), '-'),
-        agent : mock.chance(0.1, '-', (Agent)),
+        agent : mock.chance(0.1, '-', _.sample(Agent)),
         ctry : mock.chance(0.8, 'US', _.sample(Country)),
-        uri : mock.chance(0.1, '/', Uri ),
-        method : mock.chance(0.9, 'GET', _.sample(Method)),
+        uri : mock.chance(0.2, '/', _.sample(Uri)),
+        method : mock.chance(0.95, 'GET', _.sample(Method)),
         bytes : mock.variance(this.cfg.pv_bytes),
         bytes_in : mock.variance(this.cfg.pv_bytes_in),
         status : mock.chance(0.90, 200, _.sample(Status))
     };
 };
 
-MockApache.prototype = { 
-    mock_event : mock_event
-
-
+module.exports = { 
+    init : init,
+    event : event
 };
-
-module.exports = MockApache;
