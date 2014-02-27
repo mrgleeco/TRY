@@ -19,7 +19,7 @@ var keybase = 'hits:';
 var obs = {};
 var stat = {};
 
-var DEBUG = 0;
+var DEBUG = 1;
 var D = DEBUG ? console.log : function() { return; };
 
 var main = function()  {
@@ -142,10 +142,10 @@ var inflate_series = function() {
 
 
 
-// main();
 
 
 module.exports = function() {
     main(1);
 };
 
+main();
