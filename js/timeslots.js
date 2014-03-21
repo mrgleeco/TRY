@@ -16,24 +16,10 @@ var _ = require('underscore');
 
 var step = 300;
 var keybase = 'hits:';
-var obs = {};
 var stat = {};
 
 var DEBUG = 1;
 var D = DEBUG ? console.log : function() { return; };
-
-var main = function()  {
-
-    init_series();
-    D('----INITIAL---- ', obs);
-
-    deflate_series();
-    D('----DEFLATE---- ', obs);
-    inflate_series();
-    D('----INFLATE---- ', obs);
-    D(stat);
-
-};
 
 var variance = function(n, pct) {
     var x = Math.random();
@@ -42,11 +28,12 @@ var variance = function(n, pct) {
     return Math.floor(nb);
 };
 
+
+
 var init_series = function() {
 
     // build dummy entries; ex. 1 hour of observations every 2 sec.
-
-
+    var obs = {}; 
     var start_time  = moment().unix();
     for (var i=0; i <= 3600; i+=12){
 
@@ -63,16 +50,18 @@ var init_series = function() {
 
         // push this observation to its slot bucket
         ob.push([offset, ct]);
+        console.log('ob', ob);
     }
-    stat.json_before = JSON.stringify(obs).length;
+    return obs;
 };
 
 
 
 
-var deflate_series = function () {
-    // compaction example
+//compaction example
+var encode_series = function (obs) {
 
+    var ob = {};
     _.each(obs, function(ob,key) {
 
         // sort the observations by time order
@@ -92,6 +81,7 @@ var deflate_series = function () {
 
         // swap each observation as delta
         for(var i=1; i<=len; i++){
+            if ( isNaN(ob[i][0]) || isNaN(ob[i][1]) ) continue;
 
             var t_curr = ob[i][0];
             var n_curr = ob[i][1];
@@ -109,16 +99,17 @@ var deflate_series = function () {
         }
         s.avg = ( s.sum ) ? s.sum / s.event_ct : 0;
     });
-
-    stat.json_after = JSON.stringify(obs).length;
-    stat.size_delta = 1 - ( stat.json_before / stat.json_after);
+    return ob;
 };
 
 
 
-var inflate_series = function() {
+// reinvent the real
+var decode_series = function(obs) {
 
+    var ob = [];
     _.each(obs, function(ob,key) {
+
 
         // to get full timestamp, we need to parse it out of the key (wonky?)
         var base = key.match(/:(\d+)$/)[1];
@@ -138,14 +129,27 @@ var inflate_series = function() {
             n_prev = ob[i][1];                    // save this observation for next
         }
     });
+    return ob;
 };
 
 
 
+var main = function() { 
+    var obs = init_series();
+    D('----INITIAL---- ', JSON.stringify(obs));
+    var enc = encode_series(obs);
+    D('----ENC---- ', JSON.stringify(enc));
+    var dec = decode_series(enc);
+    D('----DEC---- ', JSON.stringify(dec));
 
-
-module.exports = function() {
-    main(1);
 };
 
-main();
+module.exports = {
+    enc: encode_series,
+    dec: decode_series
+};
+
+
+if (process.env.MAIN || require.main === module) {
+    main();
+}
