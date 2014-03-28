@@ -1,0 +1,16 @@
+var _ = require('lodash');
+
+var h = require('./points.json');
+
+var z = [];
+
+_.each(h, function(e,key) { 
+    _.each(e, function(k,v) { 
+        z.push( [ key, k, v ] );
+    });
+});
+
+JSON.stringify(z);
+
+
+
