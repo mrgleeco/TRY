@@ -60,5 +60,7 @@ vim Dokcerfile
 sudo docker build -t="gleeco/proj" .
 sudo docker run -t -i -p 8080:8080 -v=`pwd`:/proj -w=/proj gleeco/proj
 
+### more advanced
+docker commit -run '{"Cmd": ["/usr/bin/redis-server"], "PortSpecs": [":6379"]}' b9859484e68f johncosta/redis
 
 vim: ft=markdown
