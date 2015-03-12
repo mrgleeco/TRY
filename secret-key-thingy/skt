@@ -1,0 +1,85 @@
+#!/bin/bash
+
+set -e
+
+SRC_DIR=./creds
+SRC_TGZ=./creds.tgz
+SRC_GPG=./creds.tgz.asc
+KEYDIR=./pubkeys
+GEXEC=
+RECIP=
+
+init() {
+    GDIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir') \
+        && chmod 700 $GDIR \
+        && GEXEC="gpg2 --homedir $GDIR --textmode " \
+        && trap "rm -rf $GDIR $SRC_TGZ" EXIT || exit 255
+    # D "using GDIR $GDIR"
+}
+
+D() {
+    echo $@
+}
+
+setup() {
+    for f in $KEYDIR/*.asc; do
+        $GEXEC --import ${f}
+    done
+
+    # perl! create a table; multiline string of the current keys, eg.
+    #   id|gitusername|email
+    # first an input list of public key ID, then lookup each for uid
+    export gxe="$GEXEC --list-keys";
+    key_ids=$($GEXEC --list-keys | grep ^pub | perl -ane '
+        (m@^pub .*?/(\w+)@ and $id=$1) or next;
+        $raw = qx{ $ENV{gxe} $id |grep ^uid};
+        if ($raw=~ m@uid.*?\((.*?)\).*?<(.*?\@jut.io.*?)>@) {
+            print "$id|$1|$2\n"
+        }')
+
+    # create the recipient list
+    RECIP=$(echo "$key_ids" | cut -d\| -f 3 |\
+        perl -ane 'chomp && print "--recipient $_ "')
+
+    # match current repo gituser name to key
+    SELF=$( echo "$key_ids" | grep `git config github.user`)
+    KEYID=$(echo $SELF | cut -d\| -f 1);
+    USER=$(echo $SELF | cut -d\| -f 3);
+    # populate current user secret key to our temp
+    gpg2 --export-secret-keys -a ${KEYID} |\
+        $GEXEC --allow-secret-key-import --import -
+}
+
+encode() {
+    tar zcvf $SRC_TGZ $SRC_DIR
+    [ -f $SRC_GPG ] &&  rm $SRC_GPG
+    $GEXEC -a -s -u $USER --encrypt --trust-model always $RECIP $SRC_TGZ
+    D `ls -l $SRC_GPG`
+}
+
+decode() {
+    $GEXEC -u $USER --trust-model always --decrypt $SRC_GPG
+    # XXX --keep-newer-files makes sense -and problems
+    tar -zxvf $SRC_TGZ
+}
+
+
+RUN_MODE=$1
+case "${RUN_MODE}" in
+    enc|encode)
+        RUN_MODE="encode"
+        shift;
+        ;;
+    dec|decode)
+        RUN_MODE="decode"
+        shift;
+        ;;
+    *)
+        echo "usage $0 <encode|decode>"
+        exit 1
+        ;;
+esac
+
+init
+setup
+eval ${RUN_MODE}
