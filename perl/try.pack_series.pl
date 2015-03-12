@@ -13,16 +13,44 @@ my @a;
 push @a, int rand 1024
     for 1..$max;
 
-# test: working with quads? this didn't pan out...
-my $x = pack 'Q*', @a;      # 2384 bytes;  672 bytes gzipd
-my @z = unpack 'Q*', $x;
+# test: working with quads? this didn't pan out..
+#my $tmpl = 'Q*'
+my $tmpl = 'S*';
+my $x = pack $tmpl, @a;      # 2384 bytes;  672 bytes gzipd
+my @z = unpack $tmpl, $x;
 
-# print $x;     # 
+=cut
+my $uenc = pack 'u*', $x;
+my ($fh,$f) = (undef,"tmp.$$");
+open ($fh, '>', $f) || die;
+print $fh $uenc;
+close $fh;
+my $zenc = qx{ cat $f | gzip  };
+# my $zenc = '';
+=cut
+
+
+use Compress::LZ4;
+
+my $lz = compress($x);
+my $lzu = decompress($lz);
+
+
 my $json = JSON::XS->new->encode(\@z || []);     # 1129 bytes; 570 bytes gzipd
 my $gz = qx{ echo "$json" | gzip };
-my $enc = qx{ echo "$json" | gzip | base64 };
+my $enc = qx{ echo "$json" | gzip  | base64 };
 
 printf( "Array tests A \t max=%d \n", $max);
+
+printf( "pack format %s\t length=%d\n", $tmpl, length $x);
+#printf( "uuencode length=%d\n", length $uenc);
+#printf( "uuencode + gzip length=%d\n", length $zenc);
+printf( "lz4 length=%d\n", length $lz);
+
+
+$lz = compress_hc($json);
+printf( "lz4 json length=%d\n", length $lz);
+
 printf( "len: %d \t%s\n", length $json , 'raw json', );
 printf( "len: %d \t%s\n", length $gz, 'gzip json', );
 printf( "len: %d \t%s\n", length $enc, 'gzip json + base64', );
@@ -62,6 +90,7 @@ Array tests A    max=1440
 len: 5635   raw json
 len: 2638   gzip json
 len: 3521   gzip json + base64
+
 Array tests B: [tdelta,valdelta] max=1440
 len: 25504  raw json
 len: 10314  gzip json
