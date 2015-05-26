@@ -8,6 +8,8 @@ SRC_GPG=./creds.tgz.asc
 KEYDIR=./pubkeys
 GEXEC=
 RECIP=
+# whatever your email domain is
+MY_ORG=example.com
 
 init() {
     GDIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir') \
@@ -30,10 +32,10 @@ setup() {
     #   id|gitusername|email
     # first an input list of public key ID, then lookup each for uid
     export gxe="$GEXEC --list-keys";
-    key_ids=$($GEXEC --list-keys | grep ^pub | perl -ane '
+    key_ids=$($GEXEC --list-keys | grep ^pub | MY_ORG=$MY_ORG perl -ane '
         (m@^pub .*?/(\w+)@ and $id=$1) or next;
         $raw = qx{ $ENV{gxe} $id |grep ^uid};
-        if ($raw=~ m@uid.*?\((.*?)\).*?<(.*?\@jut.io.*?)>@) {
+        if ($raw=~ m@uid.*?\((.*?)\).*?<(.*?\@$ENV{MY_ORG}.*?)>@) {
             print "$id|$1|$2\n"
         }')
 
